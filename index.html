@@ -14,6 +14,8 @@
             --white: #ffffff;
             --gray: #666666;
             --border: #222222;
+            --accent: #00ff88;
+            --warning: #ffcc00;
         }
 
         body { 
@@ -73,9 +75,7 @@
             font-size: 1rem;
         }
 
-        input:focus { 
-            border-bottom-color: var(--white);
-        }
+        input:focus { border-bottom-color: var(--white); }
 
         .btn-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 20px; }
 
@@ -92,17 +92,9 @@
             font-size: 0.75rem;
         }
 
-        button:hover { 
-            background: #ccc;
-            transform: translateY(-2px);
-        }
+        button:hover { background: #ccc; transform: translateY(-2px); }
 
-        .clr { 
-            background: transparent; 
-            color: var(--gray); 
-            border: 1px solid var(--border);
-        }
-
+        .clr { background: transparent; color: var(--gray); border: 1px solid var(--border); }
         .clr:hover { color: var(--white); border-color: var(--white); background: transparent; }
 
         ul { list-style: none; padding: 0; margin-top: 50px; }
@@ -113,25 +105,34 @@
             display: flex; 
             justify-content: space-between; 
             align-items: center;
-            animation: fadeIn 0.5s ease;
-        }
-
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
         }
 
         .item-row { font-weight: 400; color: #eee; font-size: 0.95rem; }
         .amt-row { font-weight: 500; color: var(--white); font-size: 0.95rem; }
         
-        .r { 
-            color: var(--gray); 
-            cursor: pointer; 
-            margin-left: 15px; 
-            font-size: 0.8rem;
-            transition: 0.2s; 
-        }
+        .r { color: var(--gray); cursor: pointer; margin-left: 15px; font-size: 0.8rem; transition: 0.2s; }
         .r:hover { color: var(--white); }
+
+        /* Wallet and Advice Styles */
+        .wallet-card { background: #111; padding: 20px; margin-bottom: 20px; border: 1px solid var(--border); }
+        .wallet-val { font-size: 1.5rem; color: var(--accent); display: flex; align-items: center; justify-content: space-between; }
+        .edit-wallet { font-size: 1rem; color: var(--gray); cursor: pointer; transition: 0.2s; }
+        .edit-wallet:hover { color: var(--white); }
+
+        .adv-box { 
+            background: #111; 
+            padding: 15px; 
+            border-left: 3px solid var(--accent); 
+            margin-top: 20px; 
+            font-size: 0.8rem; 
+            color: #aaa;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .adv-box i { font-size: 1rem; }
+        .adv-icon-warn { color: var(--warning); }
+        .adv-icon-ok { color: var(--accent); }
 
         @media (max-width: 480px) {
             .c { padding: 30px; }
@@ -142,7 +143,15 @@
 <body>
 
 <div class="c">
-    <h3>Current Balance</h3>
+    <div class="wallet-card">
+        <h3>E-Wallet Balance</h3>
+        <div class="wallet-val">
+            <span>&#8369;<span id="w_bal">0.00</span></span>
+            <i class="fas fa-pen-to-square edit-wallet" onclick="fn_wallet_menu()" title="Deposit or Withdraw"></i>
+        </div>
+    </div>
+
+    <h3>Total Expenses</h3>
     <div class="amt-display"><span class="peso-sign">&#8369;</span><span id="t">0.00</span></div>
     
     <input type="text" id="k" placeholder="Description">
@@ -153,22 +162,31 @@
         <button class="clr" onclick="fn_c()">Clear All</button>
     </div>
 
+    <div class="adv-box" id="adv_msg">
+        <i class="fas fa-info-circle"></i>
+        <span>Add entries to see predictions.</span>
+    </div>
+
     <ul id="l"></ul>
 </div>
 
 <script>
-    const _U = "https://wwxywwyvkuphpppsfxmo.supabase.co";// supabase url
-    const _K = "sb_publishable_L3aYQiXP-EFlfCQiAv1jaw_-YmYkwM_"; // Publishable key
-    const db = supabase.createClient(_U, _K);
+    const _U = "https://wwxywwyvkuphpppsfxmo.supabase.co";
+    const K = "sb_publishable_L3aYQiXP-EFlfCQiAv1jaw_-YmYkwM_"; 
+    const db = supabase.createClient(_U, K);
 
     const _t = document.getElementById('t');
     const _l = document.getElementById('l');
     const _k = document.getElementById('k');
     const _v = document.getElementById('v');
+    const _w = document.getElementById('w_bal');
+    const _adv = document.getElementById('adv_msg');
 
     async function fn_s() {
         let { data: rs, error: err } = await db.from('budget_db').select('*');
         if (err) return;
+
+        localStorage.setItem('local_budget_data', JSON.stringify(rs));
 
         _l.innerHTML = "";
         let total = 0;
@@ -185,6 +203,60 @@
             _l.appendChild(row);
         });
         _t.innerText = total.toLocaleString(undefined, {minimumFractionDigits: 2});
+
+        fn_update_adv(total);
+    }
+
+    // Updated with Font Awesome Icons
+    function fn_update_adv(total) {
+        let wallet = parseFloat(localStorage.getItem('wallet_val') || 0);
+        let msg = "";
+        let icon = "";
+
+        if (total === 0) {
+            icon = '<i class="fas fa-info-circle"></i>';
+            msg = "Add entries to see predictions.";
+            _adv.style.borderLeftColor = "var(--gray)";
+        } else if (total > wallet) {
+            icon = '<i class="fas fa-exclamation-triangle adv-icon-warn"></i>';
+            msg = "<b>Warning:</b> Over budget! Debt: ₱" + (total - wallet).toFixed(2);
+            _adv.style.borderLeftColor = "var(--warning)";
+        } else {
+            icon = '<i class="fas fa-check-circle adv-icon-ok"></i>';
+            msg = "<b>Advice:</b> Healthy. Savings: ₱" + (wallet - total).toFixed(2);
+            _adv.style.borderLeftColor = "var(--accent)";
+        }
+        _adv.innerHTML = `${icon} <span>${msg}</span>`;
+    }
+
+    function fn_wallet_menu() {
+        let choice = prompt("Type 'D' to Deposit or 'W' to Withdraw:").toUpperCase();
+        if (choice !== 'D' && choice !== 'W') return;
+
+        let amt = parseFloat(prompt("Enter amount:"));
+        if (isNaN(amt) || amt <= 0) return;
+
+        let current = parseFloat(localStorage.getItem('wallet_val') || 0);
+        let updated = current;
+
+        if (choice === 'D') {
+            updated += amt;
+        } else if (choice === 'W') {
+            if (amt > current) {
+                alert("Insufficient wallet balance!");
+                return;
+            }
+            updated -= amt;
+        }
+
+        localStorage.setItem('wallet_val', updated);
+        _w.innerText = updated.toFixed(2);
+        fn_s();
+    }
+
+    function initWallet() {
+        let wallet = localStorage.getItem('wallet_val') || 0;
+        _w.innerText = parseFloat(wallet).toFixed(2);
     }
 
     async function fn_a() {
@@ -209,6 +281,7 @@
         }
     }
 
+    initWallet();
     fn_s();
 
     if ("serviceWorker" in navigator) {
@@ -219,5 +292,5 @@
 </script>
 
 </body>
-
 </html>
+
